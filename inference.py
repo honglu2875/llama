@@ -118,7 +118,6 @@ def main(ckpt_dir: str,
     msg_queue = mp.Queue(world_size)
     ret_queue = mp.Queue(1)
 
-
     for i in range(world_size):
         processes.append(
             mp.Process(target=server, args=(i, world_size, msg_queue, ret_queue, ckpt_dir, tokenizer_path)))
@@ -140,41 +139,3 @@ def main(ckpt_dir: str,
 
 if __name__ == '__main__':
     fire.Fire(main)
-
-
-#######################
-"""
-def main(
-        ckpt_dir: str,
-        tokenizer_path: str,
-        temperature: float = 0.8,
-        top_p: float = 0.95,
-        max_seq_len: int = 512,
-        max_batch_size: int = 32,
-):
-    local_rank, world_size = setup_model_parallel()
-    if local_rank > 0:
-        sys.stdout = open(os.devnull, "w")
-
-    generator = load(
-        ckpt_dir, tokenizer_path, local_rank, world_size, max_seq_len, max_batch_size
-    )
-
-    prompts = [
-        # For these prompts, the expected answer is the natural continuation of the prompt
-        "I believe the meaning of life is",
-        "Simply put, the theory of relativity states that ",
-        "Building a website can be done in 10 simple steps:\n",
-    ]
-    results = generator.generate(
-        prompts, max_gen_len=256, temperature=temperature, top_p=top_p
-    )
-
-    for result in results:
-        print(result)
-        print("\n==================================\n")
-
-
-if __name__ == "__main__":
-    fire.Fire(main)
-"""
