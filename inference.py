@@ -18,9 +18,15 @@ import gradio as gr
 import queue
 import multiprocessing as mp
 import torch.distributed as dist
+from time import sleep
 
 
 def setup_model_parallel(local_rank, world_size) -> Tuple[int, int]:
+    os.environ["WORLD_SIZE"] = str(world_size)
+    os.environ["RANK"] = str(local_rank)
+    os.environ["LOCAL_RANK"] = str(local_rank)
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
+    os.environ["MASTER_PORT"] = "29500"
     torch.distributed.init_process_group("nccl")
     initialize_model_parallel(world_size)
     torch.cuda.set_device(local_rank)
@@ -76,6 +82,8 @@ def server(local_rank, world_size, msg_queue, ret_queue, ckpt_dir, tokenizer_pat
     if local_rank > 0:
         sys.stdout = open(os.devnull, "w")
 
+    max_batch_size = 32
+    max_seq_len = 512
     generator = load(
         ckpt_dir, tokenizer_path, local_rank, world_size, max_seq_len, max_batch_size
     )
@@ -96,7 +104,7 @@ def req_dist(prompt, temperature: float, top_p: float, max_len: int, msg_queue, 
         msg_queue.put((prompt, temperature, top_p, max_len))
     while True:
         if not ret_queue.empty():
-            result = ret_queue.pop()
+            result = ret_queue.get()
             return result
         sleep(0.1)
 
@@ -109,6 +117,8 @@ def main(ckpt_dir: str,
     processes = []
     msg_queue = mp.Queue(world_size)
     ret_queue = mp.Queue(1)
+
+
     for i in range(world_size):
         processes.append(
             mp.Process(target=server, args=(i, world_size, msg_queue, ret_queue, ckpt_dir, tokenizer_path)))
@@ -133,7 +143,7 @@ if __name__ == '__main__':
 
 
 #######################
-
+"""
 def main(
         ckpt_dir: str,
         tokenizer_path: str,
@@ -167,3 +177,4 @@ def main(
 
 if __name__ == "__main__":
     fire.Fire(main)
+"""
